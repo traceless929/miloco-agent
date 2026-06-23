@@ -1,0 +1,16 @@
+{
+  "sidecar": {
+    "host": "127.0.0.1",
+    "port": 18789,
+    "log_level": "info"
+  },
+  "feishu": {
+    "enabled": false,
+    "mode": "long_connection",
+    "app_id": "",
+    "app_secret": "",
+    "verification_token": "",
+    "encrypt_key": "",
+    "default_receive_open_id": ""
+  }
+}

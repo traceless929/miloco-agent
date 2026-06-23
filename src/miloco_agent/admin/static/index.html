@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Miloco Agent 管理台</title>
+  <style>
+    :root {
+      --bg: #111318;
+      --bg-elevated: #181b22;
+      --sidebar: #14171d;
+      --card: #1c2029;
+      --card-hover: #222733;
+      --border: #2a3140;
+      --text: #eef2f8;
+      --muted: #8d9bb3;
+      --accent: #ff6a00;
+      --accent-dim: rgba(255, 106, 0, 0.12);
+      --accent-hover: #ff8533;
+      --ok: #34d399;
+      --ok-dim: rgba(52, 211, 153, 0.12);
+      --warn: #fbbf24;
+      --warn-dim: rgba(251, 191, 36, 0.12);
+      --err: #f87171;
+      --radius: 12px;
+      --shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "SF Pro Text", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      min-height: 100vh;
+    }
+    @media (max-width: 800px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .mobile-nav { display: flex !important; }
+    }
+    .sidebar {
+      background: var(--sidebar);
+      border-right: 1px solid var(--border);
+      padding: 1.25rem 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .brand {
+      padding: 0 1.25rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0.75rem;
+    }
+    .brand h1 {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .brand p {
+      margin: 0.35rem 0 0;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .conn-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .conn-dot.on { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+    nav { flex: 1; }
+    nav button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 0.65rem 1.25rem;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.9rem;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+    }
+    nav button:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+    nav button.active {
+      color: var(--text);
+      background: var(--accent-dim);
+      border-left-color: var(--accent);
+    }
+    .sidebar-footer {
+      padding: 1rem 1.25rem 0;
+      border-top: 1px solid var(--border);
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .main { display: flex; flex-direction: column; min-width: 0; }
+    .topbar {
+      padding: 0.85rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      background: var(--bg-elevated);
+    }
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+    .topbar-web-link {
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .topbar-web-link.unreachable {
+      opacity: 0.65;
+    }
+    .mobile-nav { display: none; gap: 0.35rem; flex-wrap: wrap; }
+    .mobile-nav button {
+      padding: 0.35rem 0.65rem;
+      font-size: 0.8rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .mobile-nav button.active { color: var(--accent); border-color: var(--accent); }
+    .auth-bar { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .conn-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.4rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: var(--bg);
+      white-space: nowrap;
+    }
+    .conn-status .conn-dot { margin: 0; }
+    .conn-status.on {
+      border-color: rgba(52, 211, 153, 0.4);
+      background: var(--ok-dim);
+      color: var(--ok);
+    }
+    .conn-status.on .conn-dot {
+      background: var(--ok);
+      box-shadow: 0 0 8px var(--ok);
+    }
+    .conn-status.err {
+      border-color: rgba(248, 113, 113, 0.4);
+      background: rgba(248, 113, 113, 0.1);
+      color: var(--err);
+    }
+    .conn-status.err .conn-dot { background: var(--err); box-shadow: none; }
+    .auth-bar input {
+      width: min(280px, 50vw);
+      padding: 0.45rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.85rem;
+    }
+    .content { padding: 1.5rem; flex: 1; max-width: 1100px; width: 100%; }
+    .panel { display: none; animation: fade 0.2s ease; }
+    .panel.active { display: block; }
+    @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+    .metric {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.15rem;
+    }
+    .metric-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .metric-value { font-size: 1.1rem; font-weight: 600; margin-top: 0.35rem; }
+    .metric-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .card h2 {
+      margin: 0 0 1rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+    .card-desc { font-size: 0.82rem; color: var(--muted); margin: -0.5rem 0 1rem; }
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin: 0.75rem 0 0.3rem; }
+    label:first-child { margin-top: 0; }
+    input, select, textarea {
+      width: 100%;
+      padding: 0.55rem 0.7rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--accent); }
+    .grid-2 { display: grid; gap: 1.25rem; }
+    @media (min-width: 720px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
+    .row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn:hover:not(:disabled) { background: var(--accent-hover); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn.secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn.secondary:hover:not(:disabled) { border-color: var(--muted); }
+    .btn.sm { padding: 0.3rem 0.65rem; font-size: 0.78rem; }
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.55rem;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 500;
+    }
+    .badge.ok { background: var(--ok-dim); color: var(--ok); }
+    .badge.warn { background: var(--warn-dim); color: var(--warn); }
+    .badge.off { background: rgba(141,155,179,0.12); color: var(--muted); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.65rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--muted); font-weight: 500; font-size: 0.75rem; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--card-hover); }
+    code {
+      font-family: ui-monospace, monospace;
+      font-size: 0.8rem;
+      background: var(--bg);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+    }
+    .empty { color: var(--muted); font-size: 0.85rem; padding: 1rem 0; }
+    .links a {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.85rem;
+      margin-right: 1rem;
+    }
+    .links a:hover { text-decoration: underline; }
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-row label { margin: 0; font-size: 0.9rem; color: var(--text); }
+    .toggle-row span { font-size: 0.78rem; color: var(--muted); }
+    #toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      padding: 0.75rem 1.1rem;
+      border-radius: 10px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      font-size: 0.85rem;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+      z-index: 100;
+      max-width: 360px;
+    }
+    #toast.show { opacity: 1; transform: none; }
+    #toast.err { border-color: var(--err); color: var(--err); }
+    .meta-line { font-size: 0.78rem; color: var(--muted); margin-top: 0.75rem; }
+    .trace-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .trace-modal-backdrop.show { display: flex; }
+    .trace-modal {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      width: min(920px, 100%);
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .trace-modal header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+    .trace-modal header h3 { margin: 0; font-size: 1rem; }
+    .trace-modal .body {
+      padding: 1rem 1.25rem;
+      overflow: auto;
+      font-size: 0.82rem;
+    }
+    .trace-event {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.65rem 0.75rem;
+      margin-bottom: 0.5rem;
+      background: var(--bg-elevated);
+    }
+    .trace-event .hook {
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 0.35rem;
+    }
+    .trace-event pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+    .btn-link {
+      background: none;
+      border: none;
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 0.8rem;
+      padding: 0;
+      text-decoration: underline;
+    }
+    .btn-link.danger { color: var(--err); }
+    .trace-files-toolbar {
+      margin: 0.75rem 0;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .trace-files-toolbar label {
+      margin: 0;
+      font-size: 0.82rem;
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .trace-file-check { width: auto; margin: 0; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1><span class="conn-dot" id="connDot"></span>Miloco Agent</h1>
+        <p>Sidecar 管理配置台</p>
+      </div>
+      <nav id="nav">
+        <button type="button" data-panel="overview" class="active">概览</button>
+        <button type="button" data-panel="llm">LLM 模型</button>
+        <button type="button" data-panel="feishu">飞书</button>
+        <button type="button" data-panel="bridge">OpenClaw 桥接</button>
+        <button type="button" data-panel="cron">定时任务</button>
+        <button type="button" data-panel="server">Miloco Server</button>
+        <button type="button" data-panel="logs">运行日志</button>
+        <button type="button" data-panel="sessions">飞书会话</button>
+      </nav>
+      <div class="sidebar-footer">
+        <div id="lastRefresh">未连接</div>
+      </div>
+    </aside>
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="mobile-nav" id="mobileNav"></div>
+          <a
+            id="linkMilocoWeb"
+            class="btn secondary sm topbar-web-link"
+            href="http://127.0.0.1:1810/"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="打开官方 Miloco Web"
+          >Miloco Web ↗</a>
+        </div>
+        <div class="auth-bar">
+          <div class="conn-status off" id="connStatus" title="Sidecar 管理 API 连接状态">
+            <span class="conn-dot" id="connDotTop"></span>
+            <span class="conn-status-text" id="connStatusText">未连接</span>
+          </div>
+          <input id="token" type="password" placeholder="agent.auth_bearer" autocomplete="off" />
+          <button type="button" class="btn" id="btnConnect">连接</button>
+          <button type="button" class="btn secondary" id="btnRefresh" disabled>刷新</button>
+          <button type="button" class="btn secondary" id="btnReload" disabled>热加载</button>
+          <button type="button" class="btn secondary" id="btnRestartSidecar" disabled>重启 Sidecar</button>
+        </div>
+      </header>
+      <div class="content">
+        <!-- 概览 -->
+        <section class="panel active" id="panel-overview">
+          <div class="metrics" id="metrics"></div>
+          <div class="card">
+            <h2>快捷入口</h2>
+            <div class="links" id="quickLinks">连接后显示</div>
+            <p class="meta-line" id="pathsMeta"></p>
+          </div>
+          <div class="card">
+            <h2>运维提示</h2>
+            <ul style="margin:0;padding-left:1.2rem;color:var(--muted);font-size:0.85rem">
+              <li>LLM / Cron 配置保存后会<strong style="color:var(--text)">自动热加载</strong>；飞书 app_id/secret 变更需点「重启 Sidecar」</li>
+              <li>同机部署：Sidecar 通过 127.0.0.1 调 Miloco Server API</li>
+              <li>Agent 能力走 <strong style="color:var(--text)">OpenClaw 桥接</strong>：Skill + miloco-cli + 桥接工具，见「OpenClaw 桥接」页</li>
+              <li>飞书流式回复需应用<strong style="color:var(--text)">发布</strong>且可用范围为全体员工</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- LLM -->
+        <section class="panel" id="panel-llm">
+          <div class="card">
+            <h2>LLM 配置</h2>
+            <p class="card-desc">用于飞书对话、Webhook Agent 转发的模型（agent.llm）</p>
+            <form id="llmForm">
+              <label>API Base URL</label>
+              <input name="base_url" placeholder="https://api.kimi.com/coding/v1" />
+              <label>Model</label>
+              <input name="model" placeholder="kimi-for-coding" />
+              <label>API Key <span style="color:var(--muted)">（掩码则不修改）</span></label>
+              <input name="api_key" type="password" autocomplete="off" />
+              <div class="row" style="margin-top:1.25rem">
+                <button type="submit" class="btn" id="btnSaveLlm" disabled>保存 LLM</button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- 飞书 -->
+        <section class="panel" id="panel-feishu">
+          <div class="card">
+            <h2>飞书机器人</h2>
+            <p class="card-desc">长连接模式 · 配置写入 agent.feishu</p>
+            <form id="feishuForm">
+              <div class="toggle-row">
+                <div><label>启用飞书</label><span>enabled</span></div>
+                <select name="enabled" style="width:auto;min-width:100px">
+                  <option value="true">开启</option>
+                  <option value="false">关闭</option>
+                </select>
+              </div>
+              <label>App ID</label>
+              <input name="app_id" />
+              <label>App Secret <span style="color:var(--muted)">（掩码则不修改）</span></label>
+              <input name="app_secret" type="password" autocomplete="off" />
+              <div class="grid-2" style="margin-top:0.5rem">
+                <div>
+                  <label>回复格式 reply_format</label>
+                  <select name="reply_format">
+                    <option value="markdown">markdown（卡片渲染）</option>
+                    <option value="text">text（纯文本）</option>
+                  </select>
+                </div>
+                <div>
+                  <label>流式回复 stream_reply</label>
+                  <select name="stream_reply">
+                    <option value="true">开启（需 cardkit:card:write）</option>
+                    <option value="false">关闭</option>
+                  </select>
+                </div>
+              </div>
+              <label>多轮历史轮数 history_turns</label>
+              <input name="history_turns" type="number" min="0" max="50" />
+              <label>默认通知接收人 default_receive_open_id</label>
+              <input name="default_receive_open_id" placeholder="ou_xxxxxxxx（Cron/告警 IM 推送）" />
+              <p class="card-desc" style="margin-top:0.35rem">填你的飞书 open_id；保存后可在「OpenClaw 桥接」页一键绑定为通知频道</p>
+              <div class="row" style="margin-top:1.25rem">
+                <button type="submit" class="btn" id="btnSaveFeishu" disabled>保存飞书</button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- OpenClaw Bridge -->
+        <section class="panel" id="panel-bridge">
+          <div class="metrics" id="bridgeMetrics"></div>
+          <div class="card" id="bridgeRepairCard">
+            <h2>环境修复</h2>
+            <p class="card-desc">Skill 依赖 miloco-cli；Sidecar Bash 会自动解析 venv 内 CLI，不必在系统 PATH</p>
+            <div id="bridgeCliRepair"></div>
+            <hr style="border:none;border-top:1px solid var(--border);margin:1.25rem 0" />
+            <h2 style="font-size:0.95rem;margin:0 0 0.5rem">通知频道（IM 推送）</h2>
+            <p class="card-desc">Cron / 感知建议等主动通知的目标飞书用户。方式一：飞书私聊发口令 <code>*#绑定#*</code>；方式二：填 open_id 并绑定；方式三：在「飞书」页配置 default_receive_open_id</p>
+            <form id="notifyBindForm">
+              <label>飞书 open_id</label>
+              <input name="open_id" id="notifyOpenId" placeholder="ou_xxxxxxxx" />
+              <div class="row" style="margin-top:1rem">
+                <button type="submit" class="btn" id="btnBindNotify" disabled>绑定为通知频道</button>
+                <button type="button" class="btn secondary" id="btnUseDefaultNotify" disabled>用配置中的 default 绑定</button>
+              </div>
+            </form>
+            <p class="meta-line" id="notifyBindHint"></p>
+          </div>
+          <div class="card">
+            <h2>桥接工具（OpenClaw 同名）</h2>
+            <p class="card-desc">Sidecar 专有实现，Skill 正文中的工具名无需修改</p>
+            <div id="bridgeToolsList"></div>
+          </div>
+          <div class="card">
+            <h2>官方 Skill 目录</h2>
+            <p class="card-desc">plugins/skills — merge 上游后重启 Sidecar 即可加载新版本</p>
+            <p class="meta-line" id="bridgeSkillsPath"></p>
+            <div id="bridgeSkillsTable"></div>
+          </div>
+          <div class="card">
+            <h2>数据文件</h2>
+            <div id="bridgeDataMeta" class="meta-line"></div>
+          </div>
+        </section>
+
+        <!-- Cron -->
+        <section class="panel" id="panel-cron">
+          <div class="card">
+            <h2>定时任务调度</h2>
+            <form id="cronForm" style="margin-bottom:1.25rem">
+              <div class="grid-2">
+                <div class="toggle-row" style="border:none;padding:0">
+                  <div><label>启用 Cron</label></div>
+                  <select name="enabled" style="width:auto">
+                    <option value="true">开启</option>
+                    <option value="false">关闭</option>
+                  </select>
+                </div>
+                <div>
+                  <label>时区 timezone</label>
+                  <input name="timezone" value="Asia/Shanghai" />
+                </div>
+              </div>
+              <div class="row" style="margin-top:1rem">
+                <button type="submit" class="btn" id="btnSaveCron" disabled>保存 Cron</button>
+              </div>
+            </form>
+            <h2 style="font-size:0.85rem;color:var(--muted);margin-bottom:0.5rem">受管任务（家庭记忆管线）</h2>
+            <p class="card-desc" id="cronPipelineIntro" style="margin-top:-0.5rem">需开启 Cron 后按周期自动跑；也可点「立即执行」手动验证</p>
+            <div id="cronManagedTable"></div>
+            <h2 style="font-size:0.85rem;color:var(--muted);margin:1.25rem 0 0.5rem">用户任务 Cron</h2>
+            <form id="userCronForm" style="margin-bottom:1rem;padding:1rem;border:1px solid var(--border);border-radius:var(--radius)">
+              <div class="grid-2">
+                <div><label>名称 name</label><input name="name" placeholder="morning-reminder" required /></div>
+                <div><label>周期 cron_expr</label><input name="cron_expr" placeholder="0 8 * * *" required /></div>
+              </div>
+              <label style="margin-top:0.75rem">触发消息 message</label>
+              <input name="message" placeholder="执行每日提醒…" required />
+              <div class="grid-2" style="margin-top:0.75rem">
+                <div><label>关联 task_id（可选）</label><input name="task_id" placeholder="task_xxx" /></div>
+                <div><label>时区</label><input name="timezone" value="Asia/Shanghai" /></div>
+              </div>
+              <div class="row" style="margin-top:1rem">
+                <button type="submit" class="btn sm" id="btnSaveUserCron" disabled>添加用户 Cron</button>
+              </div>
+            </form>
+            <div id="cronUserTable"></div>
+          </div>
+        </section>
+
+        <!-- Miloco Server -->
+        <section class="panel" id="panel-server">
+          <div class="card">
+            <h2>Miloco Server 任务（只读代理）</h2>
+            <p class="card-desc">从 Server <code>/api/tasks</code> 拉取，设备/规则请在官方 Web <code>:1810</code> 管理</p>
+            <div id="serverTasksMeta" class="meta-line"></div>
+            <div id="serverTasksTable"></div>
+          </div>
+        </section>
+
+        <!-- Traces -->
+        <section class="panel" id="panel-logs">
+          <div class="card">
+            <h2>最近 Agent Turn</h2>
+            <p class="card-desc">Webhook / 飞书 / Cron 触发的回合摘要；<strong>Cron</strong> 回合会自动落盘 <code>trace/agent/YYYYMMDD/*.jsonl.gz</code>（与 OpenClaw 同路径）。开启 <code>debug</code> 或 <code>.debug_observability</code> 后非 Cron 也会落盘。</p>
+            <div id="logsRefreshMeta" class="meta-line"></div>
+            <div id="tracesTable"></div>
+          </div>
+          <div class="card" style="margin-top:1rem">
+            <h2>落盘 Trace 文件</h2>
+            <p class="card-desc">持久化 jsonl.gz，进程重启后仍可查看</p>
+            <div id="traceFilesMeta" class="meta-line"></div>
+            <div class="row trace-files-toolbar" id="traceFilesToolbar" style="display:none">
+              <label><input type="checkbox" id="traceSelectAll" class="trace-file-check" /> 全选</label>
+              <button type="button" class="btn sm secondary" id="btnTraceDeleteSelected">删除选中</button>
+              <button type="button" class="btn sm secondary" id="btnTraceCleanup7d">清理 7 天前</button>
+              <button type="button" class="btn sm secondary" id="btnTraceCleanupAll">清空全部</button>
+            </div>
+            <div id="traceFilesTable"></div>
+          </div>
+        </section>
+
+        <!-- Sessions -->
+        <section class="panel" id="panel-sessions">
+          <div class="card">
+            <h2>飞书多轮会话</h2>
+            <p class="card-desc">$MILOCO_HOME/agent/sessions/ 持久化的对话历史</p>
+            <div id="sessionsTable"></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <div id="traceModalBackdrop" class="trace-modal-backdrop" aria-hidden="true">
+    <div class="trace-modal" role="dialog" aria-labelledby="traceModalTitle">
+      <header>
+        <h3 id="traceModalTitle">Turn Trace</h3>
+        <button type="button" class="btn sm" id="btnCloseTraceModal">关闭</button>
+      </header>
+      <div class="body" id="traceModalBody"></div>
+    </div>
+  </div>
+  <div id="toast"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let token = localStorage.getItem("miloco_agent_admin_token") || "";
+    let statusCache = null;
+    let toastTimer = null;
+    let activePanel = "overview";
+    let logsRefreshTimer = null;
+    const LOGS_REFRESH_MS = 5000;
+
+    function toast(msg, isErr = false) {
+      const el = $("toast");
+      el.textContent = msg;
+      el.className = "show" + (isErr ? " err" : "");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+    }
+
+    function headers() {
+      const h = { "Content-Type": "application/json" };
+      if (token) h["Authorization"] = "Bearer " + token;
+      return h;
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch("/admin/api" + path, {
+        ...opts,
+        headers: { ...headers(), ...(opts.headers || {}) },
+      });
+      if (res.status === 401) throw new Error("鉴权失败，请检查 agent.auth_bearer");
+      if (!res.ok) {
+        let msg = res.statusText;
+        try { const j = JSON.parse(await res.text()); msg = j.detail || j.message || msg; } catch {}
+        throw new Error(msg);
+      }
+      return res.json();
+    }
+
+    function setConnected(on, errMsg) {
+      $("connDot").classList.toggle("on", on && !errMsg);
+      const status = $("connStatus");
+      const statusText = $("connStatusText");
+      const dotTop = $("connDotTop");
+      if (status) {
+        status.classList.remove("on", "off", "err");
+        if (errMsg) status.classList.add("err");
+        else if (on) status.classList.add("on");
+        else status.classList.add("off");
+      }
+      if (dotTop) dotTop.classList.toggle("on", on && !errMsg);
+      if (statusText) {
+        statusText.textContent = errMsg
+          ? (errMsg.length > 18 ? errMsg.slice(0, 18) + "…" : errMsg)
+          : (on ? "已连接" : "未连接");
+      }
+      if (status && on && !errMsg) {
+        status.title = "Sidecar 管理 API 已连接";
+      } else if (status && errMsg) {
+        status.title = errMsg;
+      } else if (status) {
+        status.title = "请输入 agent.auth_bearer 后点击连接";
+      }
+      const footer = $("lastRefresh");
+      if (footer && !on && !errMsg) footer.textContent = "未连接";
+      ["btnRefresh", "btnReload", "btnRestartSidecar", "btnSaveLlm", "btnSaveFeishu", "btnSaveCron", "btnSaveUserCron", "btnBindNotify", "btnUseDefaultNotify", "btnInstallCli"].forEach((id) => {
+        const el = $(id);
+        if (el) el.disabled = !on;
+      });
+      if (!on) updateLogsAutoRefresh();
+    }
+
+    function updateLogsRefreshMeta(ok = true) {
+      const meta = $("logsRefreshMeta");
+      if (!meta) return;
+      if (activePanel !== "logs" || !token) {
+        meta.textContent = "";
+        return;
+      }
+      const t = new Date().toLocaleTimeString("zh-CN");
+      meta.textContent = ok
+        ? `自动刷新 · 每 ${LOGS_REFRESH_MS / 1000} 秒 · 上次 ${t}`
+        : `自动刷新失败 · 上次尝试 ${t}`;
+    }
+
+    function updateLogsAutoRefresh() {
+      if (logsRefreshTimer) {
+        clearInterval(logsRefreshTimer);
+        logsRefreshTimer = null;
+      }
+      if (activePanel === "logs" && token) {
+        updateLogsRefreshMeta();
+        logsRefreshTimer = setInterval(() => {
+          refreshLogs().catch(() => updateLogsRefreshMeta(false));
+        }, LOGS_REFRESH_MS);
+      } else {
+        updateLogsRefreshMeta();
+      }
+    }
+
+    async function refreshLogs() {
+      const [traces, traceFiles] = await Promise.all([
+        api("/traces"),
+        api("/traces/files").catch((e) => ({ ok: false, error: e.message, files: [] })),
+      ]);
+      renderTraces(traces);
+      renderTraceFiles(traceFiles);
+      updateLogsRefreshMeta();
+    }
+
+    function showPanel(name) {
+      activePanel = name;
+      document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
+      document.querySelectorAll("#nav button, #mobileNav button").forEach((b) => {
+        b.classList.toggle("active", b.dataset.panel === name);
+      });
+      $("panel-" + name).classList.add("active");
+      updateLogsAutoRefresh();
+      if (name === "logs" && token) refreshLogs().catch(() => updateLogsRefreshMeta(false));
+    }
+
+    document.querySelectorAll("#nav button").forEach((btn) => {
+      btn.onclick = () => showPanel(btn.dataset.panel);
+    });
+
+    const mobileNav = $("mobileNav");
+    document.querySelectorAll("#nav button").forEach((btn) => {
+      const m = document.createElement("button");
+      m.type = "button";
+      m.textContent = btn.textContent;
+      m.dataset.panel = btn.dataset.panel;
+      m.onclick = () => showPanel(btn.dataset.panel);
+      mobileNav.appendChild(m);
+    });
+
+    function badge(ok, yes = "正常", no = "异常") {
+      return ok ? `<span class="badge ok">${yes}</span>` : `<span class="badge warn">${no}</span>`;
+    }
+
+    function renderBridgeBadge(b) {
+      if (!b) return '<span class="badge warn">未知</span>';
+      const ok = b.skills?.available && b.miloco_cli?.available;
+      return ok ? '<span class="badge ok">就绪</span>' : '<span class="badge warn">待修复</span>';
+    }
+
+    function renderBridgePanel(b) {
+      if (!b) return;
+      $("bridgeMetrics").innerHTML = `
+        <div class="metric">
+          <div class="metric-label">Skill 目录</div>
+          <div class="metric-value">${badge(b.skills?.available, b.skills?.count + " 个", "未找到")}</div>
+          <div class="metric-sub"><code style="font-size:0.7rem">${b.skills?.directory || "—"}</code></div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">miloco-cli</div>
+          <div class="metric-value">${badge(b.miloco_cli?.available, "可用", "未安装")}</div>
+          <div class="metric-sub">${cliSub(b.miloco_cli)}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">通知频道</div>
+          <div class="metric-value">${b.notify_channel?.bound ? '<span class="badge ok">已绑定</span>' : (b.notify_channel?.default_receive_open_id ? '<span class="badge warn">未绑定(有默认)</span>' : '<span class="badge off">未绑定</span>')}</div>
+          <div class="metric-sub">${notifySub(b.notify_channel)}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">家庭档案</div>
+          <div class="metric-value">${b.home_profile?.profile_md_exists ? '<span class="badge ok">profile.md</span>' : '<span class="badge off">空</span>'}</div>
+          <div class="metric-sub">感知记忆文件 ${b.memory?.file_count ?? 0} 个</div>
+        </div>`;
+      const tools = [...(b.bridge_tools || []), ...(b.runtime_tools || [])];
+      $("bridgeToolsList").innerHTML = tools.map((t) => `<code style="margin:0.2rem 0.35rem 0.2rem 0;display:inline-block">${t}</code>`).join("");
+      $("bridgeSkillsPath").textContent = `扫描路径: ${b.skills?.directory || "—"}`;
+      const items = b.skills?.items || [];
+      if (!items.length) {
+        $("bridgeSkillsTable").innerHTML = '<p class="empty">未找到 SKILL.md（检查仓库 plugins/skills 或 MILOCO_SKILLS_DIR）</p>';
+      } else {
+        const rows = items.map((sk) => `<tr>
+          <td><code>${sk.name}</code></td>
+          <td style="color:var(--muted);font-size:0.8rem">${sk.description || "—"}</td>
+        </tr>`).join("");
+        $("bridgeSkillsTable").innerHTML = `<table><thead><tr><th>Skill</th><th>描述</th></tr></thead><tbody>${rows}</tbody></table>`;
+      }
+      $("bridgeDataMeta").innerHTML = [
+        `profile.md: <code>${b.home_profile?.profile_md_path || "—"}</code>`,
+        `memory/: <code>${b.memory?.directory || "—"}</code> (${b.memory?.file_count ?? 0} 文件)`,
+      ].join("<br>");
+      renderBridgeCliRepair(b.miloco_cli);
+      const nc = b.notify_channel || {};
+      $("notifyOpenId").value = nc.open_id || nc.default_receive_open_id || "";
+      $("notifyBindHint").textContent = nc.bound
+        ? `已绑定 ${nc.open_id}`
+        : (nc.default_receive_open_id
+          ? `config 中已有 default_receive_open_id，可点「用配置中的 default 绑定」`
+          : (nc.bind_instruction || `在飞书私聊机器人发送口令「${nc.bind_phrase || "*#绑定#*"}」，或填写 open_id 后点绑定`));
+      $("btnUseDefaultNotify").disabled = !nc.default_receive_open_id;
+    }
+
+    function cliSub(cli) {
+      if (!cli) return "—";
+      if (cli.version) return cli.version;
+      if (cli.path) {
+        const src = cli.on_path ? "PATH" : (cli.source || "resolved");
+        return `${src}: ${cli.path.split("/").slice(-3).join("/")}`;
+      }
+      return "—";
+    }
+
+    function notifySub(nc) {
+      if (!nc) return "—";
+      if (nc.open_id) return `open_id: ${nc.open_id}`;
+      if (nc.default_receive_open_id) return `默认: ${nc.default_receive_open_id.slice(0, 16)}…`;
+      return "需配置 open_id";
+    }
+
+    function renderBridgeCliRepair(cli) {
+      const el = $("bridgeCliRepair");
+      if (!cli) { el.innerHTML = ""; return; }
+      if (cli.available) {
+        const hint = cli.on_path ? "已在系统 PATH" : `已自动适配（${cli.source || "venv"}，Agent 可直接用）`;
+        el.innerHTML = `<p class="meta-line">${hint}</p>`;
+        return;
+      }
+      const can = cli.can_install !== false;
+      el.innerHTML = `
+        <p class="meta-line">未检测到 miloco-cli。可一键安装到 Sidecar venv（推荐），或在本机执行：<code>pip install -e ${(cli.repo_cli || "cli").split("/").slice(-2).join("/")}</code></p>
+        <div class="row" style="margin-top:0.75rem">
+          <button type="button" class="btn" id="btnInstallCli" ${can ? "" : "disabled"}>一键安装 miloco-cli</button>
+        </div>`;
+      const btn = $("btnInstallCli");
+      if (btn) {
+        btn.disabled = !can || !token;
+        btn.onclick = async () => {
+          btn.disabled = true;
+          try {
+            const r = await api("/bridge/install-cli", { method: "POST", body: "{}" });
+            toast(r.message || "安装成功");
+            await refresh();
+          } catch (e) { toast(e.message, true); }
+          btn.disabled = false;
+        };
+      }
+    }
+
+    function milocoWebUrl(s) {
+      return ((s?.server?.base_url) || "http://127.0.0.1:1810").replace(/\/$/, "") + "/";
+    }
+
+    function updateMilocoWebLink(s) {
+      const el = $("linkMilocoWeb");
+      if (!el) return;
+      const url = milocoWebUrl(s);
+      el.href = url;
+      const host = url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+      el.title = s?.server?.reachable
+        ? `打开官方 Miloco Web（${host}）`
+        : `Miloco Server 不可达，仍尝试打开（${host}）`;
+      el.classList.toggle("unreachable", !!(s && !s.server?.reachable));
+    }
+
+    function renderMetrics(s) {
+      statusCache = s;
+      $("metrics").innerHTML = `
+        <div class="metric">
+          <div class="metric-label">Miloco Server</div>
+          <div class="metric-value">${badge(s.server.reachable)}</div>
+          <div class="metric-sub">${s.server.base_url}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">LLM</div>
+          <div class="metric-value">${badge(s.llm.configured, "已配置", "未配置")}</div>
+          <div class="metric-sub">${s.llm.model || "—"}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">飞书</div>
+          <div class="metric-value">${s.feishu.enabled ? badge(s.feishu.configured, "已启用", "未配置") : '<span class="badge off">已关闭</span>'}</div>
+          <div class="metric-sub">${s.feishu.mode} · 历史 ${s.feishu.history_turns} 轮</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Cron</div>
+          <div class="metric-value">${s.cron.enabled ? badge(s.cron.running, "运行中", "未运行") : '<span class="badge off">已关闭</span>'}</div>
+          <div class="metric-sub">受管 ${s.cron.managed_jobs} · 用户 ${s.cron.user_jobs}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">OpenClaw 桥接</div>
+          <div class="metric-value">${renderBridgeBadge(s.bridge)}</div>
+          <div class="metric-sub">Skill ${s.bridge?.skills?.count ?? 0} · CLI ${s.bridge?.miloco_cli?.available ? "就绪" : "缺失"}</div>
+        </div>`;
+      const srvPort = milocoWebUrl(s).replace(/\/$/, "");
+      updateMilocoWebLink(s);
+      $("quickLinks").innerHTML = `
+        <a href="${srvPort}/" target="_blank" rel="noopener noreferrer">打开 Miloco Web</a>
+        <a href="/health" target="_blank">Sidecar /health</a>
+        <a href="https://open.feishu.cn/app" target="_blank" rel="noopener">飞书开放平台</a>`;
+      $("pathsMeta").innerHTML = `版本 v${s.version} · MILOCO_HOME: <code>${s.miloco_home}</code>`;
+      $("lastRefresh").textContent = "更新于 " + new Date(s.timestamp).toLocaleString("zh-CN");
+      renderBridgePanel(s.bridge);
+    }
+
+    function fillForms(agent) {
+      const llm = agent.llm || {};
+      const feishu = agent.feishu || {};
+      const cron = agent.cron || {};
+      const lf = $("llmForm");
+      lf.base_url.value = llm.base_url || "";
+      lf.model.value = llm.model || "";
+      lf.api_key.value = llm.api_key || "";
+      const ff = $("feishuForm");
+      ff.enabled.value = String(!!feishu.enabled);
+      ff.app_id.value = feishu.app_id || "";
+      ff.app_secret.value = feishu.app_secret || "";
+      ff.reply_format.value = feishu.reply_format || "markdown";
+      ff.stream_reply.value = String(feishu.stream_reply !== false);
+      ff.history_turns.value = feishu.history_turns ?? 10;
+      ff.default_receive_open_id.value = feishu.default_receive_open_id || "";
+      const cf = $("cronForm");
+      cf.enabled.value = String(!!cron.enabled);
+      cf.timezone.value = cron.timezone || "Asia/Shanghai";
+    }
+
+    function renderCronTable(items, containerId, isManaged) {
+      const el = $(containerId);
+      if (!items.length) {
+        el.innerHTML = '<p class="empty">暂无</p>';
+        return;
+      }
+      const rows = items.map((j) => {
+        const id = isManaged ? j.name : j.job_id;
+        const enabled = j.enabled !== false;
+        const schedule = j.schedule_label
+          ? `${j.schedule_label} <span style="color:var(--muted);font-size:0.75rem">(${j.cron_expr})</span>`
+          : j.cron_expr;
+        const summary = j.summary || "—";
+        const detail = j.detail ? `<div style="color:var(--muted);font-size:0.78rem;margin-top:0.35rem;line-height:1.4">${j.detail}</div>` : "";
+        const triggerBtn = `<button type="button" class="btn sm secondary btn-trigger" data-kind="${isManaged ? "managed" : "user"}" data-id="${id}">立即执行</button>`;
+        const userOps = isManaged ? "" : `
+          <button type="button" class="btn sm secondary btn-user-toggle" data-id="${id}" data-enabled="${enabled}">${enabled ? "禁用" : "启用"}</button>
+          <button type="button" class="btn sm secondary btn-user-delete" data-id="${id}">删除</button>`;
+        return `<tr>
+          <td><code>${id}</code>${j.task_id ? `<div style="font-size:0.75rem;color:var(--muted);margin-top:0.2rem">task: ${j.task_id}</div>` : ""}</td>
+          <td style="max-width:320px;font-size:0.85rem;line-height:1.45"><strong>${summary}</strong>${detail}</td>
+          <td>${schedule}</td>
+          <td>${enabled ? '<span class="badge ok">启用</span>' : '<span class="badge off">禁用</span>'}</td>
+          <td class="row" style="margin:0;flex-wrap:wrap">${triggerBtn}${userOps}</td>
+        </tr>`;
+      }).join("");
+      el.innerHTML = `<table><thead><tr><th>名称</th><th>说明</th><th>周期</th><th>状态</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>`;
+      el.querySelectorAll(".btn-trigger").forEach((btn) => {
+        btn.onclick = async () => {
+          btn.disabled = true;
+          try {
+            const body = btn.dataset.kind === "managed"
+              ? { kind: "managed", name: btn.dataset.id }
+              : { kind: "user", job_id: btn.dataset.id };
+            const r = await api("/crons/trigger", { method: "POST", body: JSON.stringify(body) });
+            const st = r.result?.status || "ok";
+            const err = r.result?.error;
+            toast(err ? `触发 ${btn.dataset.id} 失败: ${err}` : `已触发 ${btn.dataset.id} · ${st}`, !!err);
+          } catch (e) { toast(e.message, true); }
+          btn.disabled = false;
+        };
+      });
+      if (!isManaged) {
+        el.querySelectorAll(".btn-user-toggle").forEach((btn) => {
+          btn.onclick = async () => {
+            btn.disabled = true;
+            try {
+              await api(`/crons/user/${btn.dataset.id}`, {
+                method: "PATCH",
+                body: JSON.stringify({ enabled: btn.dataset.enabled !== "true" }),
+              });
+              toast("已更新用户 Cron");
+              await refresh();
+            } catch (e) { toast(e.message, true); btn.disabled = false; }
+          };
+        });
+        el.querySelectorAll(".btn-user-delete").forEach((btn) => {
+          btn.onclick = async () => {
+            if (!confirm(`删除用户 Cron ${btn.dataset.id}？`)) return;
+            btn.disabled = true;
+            try {
+              await api(`/crons/user/${btn.dataset.id}`, { method: "DELETE" });
+              toast("已删除");
+              await refresh();
+            } catch (e) { toast(e.message, true); btn.disabled = false; }
+          };
+        });
+      }
+    }
+
+    function renderServerTasks(body) {
+      const meta = $("serverTasksMeta");
+      const el = $("serverTasksTable");
+      if (!body?.ok) {
+        meta.textContent = body?.error ? `拉取失败: ${body.error}` : "Server 不可达";
+        el.innerHTML = '<p class="empty">请确认 Miloco Server 已启动且 server.token 正确</p>';
+        return;
+      }
+      meta.textContent = `共 ${body.count ?? 0} 个任务`;
+      const tasks = body.tasks || [];
+      if (!tasks.length) {
+        el.innerHTML = '<p class="empty">暂无任务</p>';
+        return;
+      }
+      const rows = tasks.map((t) => `<tr>
+        <td><code>${t.task_id || "—"}</code></td>
+        <td>${t.description || "—"}</td>
+        <td>${t.status ?? "—"}</td>
+        <td>${t.enabled === false ? '<span class="badge off">禁用</span>' : '<span class="badge ok">启用</span>'}</td>
+      </tr>`).join("");
+      el.innerHTML = `<table><thead><tr><th>task_id</th><th>描述</th><th>状态</th><th>开关</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    function renderTraces(body) {
+      const el = $("tracesTable");
+      const items = body?.traces || [];
+      if (!items.length) {
+        el.innerHTML = '<p class="empty">暂无 turn 记录（对话或 webhook 触发后会出现）</p>';
+        return;
+      }
+      const rows = items.map((t) => {
+        const st = t.status === "done"
+          ? (t.success === false ? '<span class="badge warn">失败</span>' : '<span class="badge ok">完成</span>')
+          : '<span class="badge warn">进行中</span>';
+        const traceBtn = `<button type="button" class="btn-link" data-trace-run="${t.runId || ""}">查看</button>`;
+        return `<tr>
+          <td><code>${t.runId || "—"}</code></td>
+          <td style="font-size:0.8rem"><code>${t.sessionKey || "—"}</code></td>
+          <td>${st}</td>
+          <td style="max-width:280px;font-size:0.82rem">${t.queryPreview || "—"}</td>
+          <td>${Math.round(t.durationMs || 0)} ms</td>
+          <td>${t.toolCallCount ?? 0}</td>
+          <td>${traceBtn}</td>
+        </tr>`;
+      }).join("");
+      el.innerHTML = `<table><thead><tr><th>runId</th><th>会话</th><th>状态</th><th>摘要</th><th>耗时</th><th>工具</th><th>Trace</th></tr></thead><tbody>${rows}</tbody></table>`;
+      el.querySelectorAll("[data-trace-run]").forEach((btn) => {
+        btn.onclick = () => openTraceDetail(btn.getAttribute("data-trace-run"));
+      });
+    }
+
+    function renderTraceFiles(body) {
+      const meta = $("traceFilesMeta");
+      const el = $("traceFilesTable");
+      const toolbar = $("traceFilesToolbar");
+      const files = body?.files || [];
+      meta.textContent = `共 ${body?.count ?? 0} 个文件 · 目录 $MILOCO_HOME/trace/agent/`;
+      if (!files.length) {
+        if (toolbar) toolbar.style.display = "none";
+        el.innerHTML = '<p class="empty">暂无落盘 trace（Cron 执行后会出现）</p>';
+        return;
+      }
+      if (toolbar) toolbar.style.display = "flex";
+      const rows = files.map((f) => {
+        const t = f.mtime ? new Date(f.mtime * 1000).toLocaleString("zh-CN") : "—";
+        const runId = f.runId || "";
+        const rel = f.jsonlPath || "";
+        return `<tr>
+          <td><input type="checkbox" class="trace-file-check trace-file-row" data-run-id="${runId}" data-rel-path="${rel}" /></td>
+          <td><code>${runId || "—"}</code></td>
+          <td style="font-size:0.78rem"><code>${rel || "—"}</code></td>
+          <td>${f.day || "—"}</td>
+          <td>${Math.round((f.sizeBytes || 0) / 1024)} KB</td>
+          <td>${t}</td>
+          <td class="row" style="margin:0;gap:0.65rem">
+            <button type="button" class="btn-link" data-trace-run="${runId}">查看</button>
+            <button type="button" class="btn-link danger btn-trace-delete" data-run-id="${runId}">删除</button>
+          </td>
+        </tr>`;
+      }).join("");
+      el.innerHTML = `<table><thead><tr><th style="width:2rem"></th><th>runId</th><th>路径</th><th>日期</th><th>大小</th><th>修改时间</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>`;
+      el.querySelectorAll("[data-trace-run]").forEach((btn) => {
+        btn.onclick = () => openTraceDetail(btn.getAttribute("data-trace-run"));
+      });
+      el.querySelectorAll(".btn-trace-delete").forEach((btn) => {
+        btn.onclick = () => deleteTraceFiles([btn.getAttribute("data-run-id") || ""]);
+      });
+      const selectAll = $("traceSelectAll");
+      if (selectAll) {
+        selectAll.checked = false;
+        selectAll.onchange = () => {
+          el.querySelectorAll(".trace-file-row").forEach((cb) => {
+            cb.checked = selectAll.checked;
+          });
+        };
+      }
+      bindTraceFilesToolbar();
+    }
+
+    function selectedTraceRunIds() {
+      return [...document.querySelectorAll(".trace-file-row:checked")]
+        .map((cb) => cb.getAttribute("data-run-id") || "")
+        .filter(Boolean);
+    }
+
+    async function deleteTraceFiles(runIds) {
+      const ids = [...new Set((runIds || []).filter(Boolean))];
+      if (!ids.length) {
+        toast("请先选择要删除的文件", true);
+        return;
+      }
+      const label = ids.length === 1 ? ids[0] : `${ids.length} 个文件`;
+      if (!confirm(`确认删除 trace 文件：${label}？`)) return;
+      try {
+        if (ids.length === 1) {
+          await api(`/traces/files/${encodeURIComponent(ids[0])}`, { method: "DELETE" });
+        } else {
+          const r = await api("/traces/files/cleanup", {
+            method: "POST",
+            body: JSON.stringify({ run_ids: ids }),
+          });
+          if (!r.ok) throw new Error(r.error || "删除失败");
+        }
+        toast("已删除");
+        await refreshLogs();
+      } catch (e) { toast(e.message, true); }
+    }
+
+    async function cleanupTraceFiles(payload, confirmMsg) {
+      if (!confirm(confirmMsg)) return;
+      try {
+        const r = await api("/traces/files/cleanup", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        if (!r.ok && !r.count) throw new Error(r.error || (r.errors || []).join("; ") || "清理失败");
+        const kb = Math.round((r.freedBytes || 0) / 1024);
+        toast(`已清理 ${r.count ?? 0} 个文件${kb ? ` · 释放约 ${kb} KB` : ""}`);
+        await refreshLogs();
+      } catch (e) { toast(e.message, true); }
+    }
+
+    function bindTraceFilesToolbar() {
+      const delSel = $("btnTraceDeleteSelected");
+      const clean7d = $("btnTraceCleanup7d");
+      const cleanAll = $("btnTraceCleanupAll");
+      if (delSel) delSel.onclick = () => deleteTraceFiles(selectedTraceRunIds());
+      if (clean7d) clean7d.onclick = () => cleanupTraceFiles(
+        { older_than_days: 7 },
+        "确认删除 7 天前的所有落盘 trace 文件？",
+      );
+      if (cleanAll) cleanAll.onclick = () => cleanupTraceFiles(
+        { delete_all: true },
+        "确认清空 trace/agent/ 下全部落盘文件？此操作不可恢复。",
+      );
+    }
+
+    function formatTracePayload(payload) {
+      if (!payload) return "";
+      try { return JSON.stringify(payload, null, 2); } catch { return String(payload); }
+    }
+
+    async function openTraceDetail(runId) {
+      if (!runId) return;
+      const backdrop = $("traceModalBackdrop");
+      const body = $("traceModalBody");
+      $("traceModalTitle").textContent = `Turn Trace · ${runId}`;
+      body.innerHTML = "<p class=\"empty\">加载中…</p>";
+      backdrop.classList.add("show");
+      try {
+        const detail = await api(`/traces/${encodeURIComponent(runId)}`);
+        if (!detail.ok) {
+          body.innerHTML = `<p class="empty">未找到 trace：${detail.error || "unknown"}</p>`;
+          return;
+        }
+        const pathLine = detail.jsonlPath
+          ? `<p class="meta-line">文件：<code>${detail.jsonlPath}</code> · ${detail.eventCount ?? 0} 条事件</p>`
+          : "";
+        const events = (detail.events || []).map((ev) => `
+          <div class="trace-event">
+            <div class="hook">${ev.hook || "event"} <span style="color:var(--muted);font-weight:400">${ev.local_time || ev.ts || ""}</span></div>
+            <pre>${formatTracePayload(ev.payload)}</pre>
+          </div>`).join("");
+        body.innerHTML = pathLine + (events || "<p class=\"empty\">无事件</p>");
+      } catch (e) {
+        body.innerHTML = `<p class="empty">${e.message}</p>`;
+      }
+    }
+
+    function closeTraceModal() {
+      $("traceModalBackdrop").classList.remove("show");
+    }
+
+    function renderSessions(sessions) {
+      const el = $("sessionsTable");
+      if (!sessions.length) {
+        el.innerHTML = '<p class="empty">暂无会话记录（飞书对话后会自动生成）</p>';
+        return;
+      }
+      const rows = sessions.map((s) => {
+        const t = s.updated_at ? new Date(s.updated_at * 1000).toLocaleString("zh-CN") : "—";
+        return `<tr><td><code>${s.session_key || s.file}</code></td><td>${s.turns}</td><td>${t}</td></tr>`;
+      }).join("");
+      el.innerHTML = `<table><thead><tr><th>会话</th><th>消息数</th><th>更新时间</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    async function refresh() {
+      const status = await api("/status");
+      renderMetrics(status);
+      const cfg = await api("/config");
+      fillForms(cfg.agent || {});
+      const crons = await api("/crons");
+      const intro = $("cronPipelineIntro");
+      if (intro && crons.pipeline_intro) intro.textContent = crons.pipeline_intro;
+      renderCronTable(crons.managed || [], "cronManagedTable", true);
+      renderCronTable(crons.user || [], "cronUserTable", false);
+      const [sess, serverTasks, traces, traceFiles] = await Promise.all([
+        api("/sessions"),
+        api("/server/tasks").catch((e) => ({ ok: false, error: e.message, tasks: [] })),
+        api("/traces"),
+        api("/traces/files").catch((e) => ({ ok: false, error: e.message, files: [] })),
+      ]);
+      renderSessions(sess.sessions || []);
+      renderServerTasks(serverTasks);
+      renderTraces(traces);
+      renderTraceFiles(traceFiles);
+      updateLogsRefreshMeta();
+      setConnected(true);
+    }
+
+    async function savePatch(patch) {
+      const r = await api("/config", { method: "PATCH", body: JSON.stringify(patch) });
+      let msg = "已保存";
+      if (patch.cron) {
+        msg = r.cron_running ? "已保存，Cron 已启动" : (r.cron_enabled ? "已保存，Cron 已开启" : "已保存，Cron 已关闭");
+      } else if (patch.llm || patch.feishu) {
+        msg = "已保存并已热加载";
+      }
+      toast(msg);
+      await refresh();
+    }
+
+    $("token").value = token;
+    $("btnConnect").onclick = async () => {
+      token = $("token").value.trim();
+      localStorage.setItem("miloco_agent_admin_token", token);
+      try {
+        await refresh();
+        updateLogsAutoRefresh();
+        toast("已连接");
+      } catch (e) {
+        toast(e.message, true);
+        setConnected(false, e.message);
+      }
+    };
+
+    $("btnRefresh").onclick = () => refresh().then(() => toast("已刷新")).catch((e) => toast(e.message, true));
+    $("btnReload").onclick = async () => {
+      try {
+        const r = await api("/reload", { method: "POST" });
+        toast(r.note || "已热加载");
+        await refresh();
+      } catch (e) { toast(e.message, true); }
+    };
+
+    $("btnRestartSidecar").onclick = async () => {
+      if (!confirm("确认重启 Sidecar？飞书长连接会短暂中断。")) return;
+      try {
+        const r = await api("/ops/restart", { method: "POST" });
+        toast(r.message || "已发起重启");
+        setTimeout(() => location.reload(), 3500);
+      } catch (e) { toast(e.message, true); }
+    };
+
+    $("llmForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      const llm = { base_url: f.base_url.value, model: f.model.value };
+      if (f.api_key.value && !f.api_key.value.startsWith("********")) llm.api_key = f.api_key.value;
+      try { await savePatch({ llm }); } catch (err) { toast(err.message, true); }
+    };
+
+    $("feishuForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      const feishu = {
+        enabled: f.enabled.value === "true",
+        app_id: f.app_id.value,
+        reply_format: f.reply_format.value,
+        stream_reply: f.stream_reply.value === "true",
+        history_turns: Number(f.history_turns.value),
+        default_receive_open_id: f.default_receive_open_id.value.trim(),
+      };
+      if (f.app_secret.value && !f.app_secret.value.startsWith("********")) feishu.app_secret = f.app_secret.value;
+      try { await savePatch({ feishu }); } catch (err) { toast(err.message, true); }
+    };
+
+    $("cronForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      try {
+        await savePatch({
+          cron: { enabled: f.enabled.value === "true", timezone: f.timezone.value },
+        });
+      } catch (err) { toast(err.message, true); }
+    };
+
+    $("userCronForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      try {
+        await api("/crons/user", {
+          method: "POST",
+          body: JSON.stringify({
+            name: f.name.value.trim(),
+            cron_expr: f.cron_expr.value.trim(),
+            message: f.message.value.trim(),
+            task_id: f.task_id.value.trim() || null,
+            timezone: f.timezone.value.trim() || "Asia/Shanghai",
+            enabled: true,
+          }),
+        });
+        toast("用户 Cron 已添加");
+        f.reset();
+        f.timezone.value = "Asia/Shanghai";
+        await refresh();
+      } catch (err) { toast(err.message, true); }
+    };
+
+    $("notifyBindForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const openId = $("notifyOpenId").value.trim();
+      if (!openId) { toast("请填写 open_id", true); return; }
+      try {
+        await api("/bridge/bind-notify", { method: "POST", body: JSON.stringify({ open_id: openId }) });
+        toast("通知频道已绑定");
+        await refresh();
+      } catch (err) { toast(err.message, true); }
+    };
+
+    $("btnUseDefaultNotify").onclick = async () => {
+      try {
+        await api("/bridge/bind-notify", { method: "POST", body: JSON.stringify({}) });
+        toast("已用 default_receive_open_id 绑定");
+        await refresh();
+      } catch (err) { toast(err.message, true); }
+    };
+
+    $("btnCloseTraceModal").onclick = closeTraceModal;
+    $("traceModalBackdrop").onclick = (e) => {
+      if (e.target === $("traceModalBackdrop")) closeTraceModal();
+    };
+
+    if (token) $("btnConnect").click();
+  </script>
+</body>
+</html>
