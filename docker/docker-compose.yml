@@ -1,4 +1,5 @@
 # Miloco 容器编排（fork 专属，位于 miloco-agent 子仓）
+# 依赖 network_mode: host —— 仅 Linux 有效；macOS Docker/Podman 不支持，请本机直跑。
 # MILOCO_REPO 必须指向 xiaomi-miloco 根目录（含 backend/ cli/ web/）
 # 用法见 miloco-agent/docker/README.md
 

@@ -51,7 +51,8 @@ xiaomi-miloco/                          ← 母仓 MILOCO_REPO
 | 操作系统 | macOS / Linux（本机感知推荐 macOS 或 Linux 与摄像头同 LAN） |
 | Python | **≥ 3.11**（Sidecar venv）；Backend 由 `uv` 管理 |
 | 工具 | `git`、`uv`（`pip install uv` 或官方安装器） |
-| 可选 | Docker / Podman（容器部署）；Mac 合盖跑需 `caffeinate` |
+| 可选 | Mac 合盖跑需 `caffeinate` |
+| **容器** | **仅 Linux**；须 Docker/Podman **`network_mode: host`**。**macOS 容器不支持有效 host 网络，请勿在 Mac 上用 Docker 部署 Miloco Server** |
 
 ---
 
@@ -289,14 +290,18 @@ bash scripts/miloco-agent-only.sh status
 
 ---
 
-## 八、Docker 部署（Linux / 同网摄像头）
+## 八、Docker 部署（仅 Linux · 须 host 网络）
+
+> **macOS 不支持有效的容器 host 网络**（Docker Desktop / Podman 均运行在 Linux VM 内），**无法在 Mac 上用容器完成摄像头 LAN 感知**。Mac 请用上一节 `miloco-stack.sh` 本机直跑。
+
+**Linux**（与摄像头同网）：
 
 ```bash
 export MILOCO_REPO=/path/to/xiaomi-miloco
 bash miloco-agent/scripts/deploy-linux-docker.sh
 ```
 
-构建 Server 镜像需要母仓的 `backend/`、`web/`；Agent 镜像仅本子仓。  
+编排使用 `network_mode: host`（见 `docker/docker-compose.yml`），**不支持**改为 bridge 后仍保留完整感知能力。  
 详见 [docker/README.md](./docker/README.md)。
 
 ---
@@ -327,6 +332,8 @@ docker/data/
 | 子模块目录空 | 未 init submodule | `git submodule update --init --recursive` |
 | 飞书无消息 | 未开长连接或未发布应用 | [FEISHU_SETUP.md](./docs/agent/FEISHU_SETUP.md) |
 | 合盖后停服 | Mac 睡眠 | 插电 + `caffeinate start` |
+| Mac 容器无法感知 | macOS 无有效 host 网络 | **勿用 Docker**；改用 `miloco-stack.sh` 本机直跑 |
+| Linux 容器失败 | 未用 host 或不在摄像头网段 | 确认 `network_mode: host` 且与摄像头同 LAN |
 
 ---
 

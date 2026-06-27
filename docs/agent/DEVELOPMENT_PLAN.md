@@ -263,7 +263,7 @@ Miloco Server 需与摄像头处于**同一 LAN**，才能拉流/感知。默认
 | **本机 / NAS 直跑** | ✅ 推荐：`miloco-cli service` + `miloco-agent-run.sh` |
 | **supervisor 7×24** | ✅ 见 `scripts/miloco-agent-supervisor.conf.example` |
 | **Docker Compose（bridge）** | ❌ 不推荐：破坏摄像头内网可达性 |
-| **Docker `network_mode: host`** | ⚠️ 仅当必须容器化时再评估；macOS Docker 对 host 网络支持有限，Linux 家用机可行 |
+| **Docker `network_mode: host`** | ✅ **Linux 容器化**（见 `docker/`）；**macOS 容器不支持有效 host 网络**，Mac 请本机直跑 |
 
 ### 8.3 验收标准
 

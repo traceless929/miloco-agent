@@ -49,6 +49,8 @@ Omni 摄像头感知在外部 Server 执行，Sidecar **不需要**配置 `model
 | 凭证 | 已知 `config.json` → `server.token` |
 | 配置 | 需写入与 Sidecar **一致** 的 `agent.webhook_url`、`agent.auth_bearer` |
 
+> **若外部 Server 需摄像头 LAN 感知（Omni）且用容器部署**：必须在 **Linux** 上使用 Docker/Podman 的 **`network_mode: host`**。**macOS 上的 Docker Desktop / Podman 不支持有效 host 网络**，容器内 Server 无法与家庭摄像头同网 —— Mac 上请本机直跑 Server，或把 Server 部署到 Linux 主机。详见 [docker/README.md](../docker/README.md)。
+
 ### 2.3 可选组件
 
 | 组件 | 是否必须 | 说明 |
@@ -64,7 +66,7 @@ Omni 摄像头感知在外部 Server 执行，Sidecar **不需要**配置 `model
 | 场景 | Sidecar 监听 | `agent.webhook_url` 示例 | 注意 |
 |------|--------------|---------------------------|------|
 | 同机 | `127.0.0.1:18789` | `http://127.0.0.1:18789/miloco/webhook` | Server 与 Sidecar 同一台 |
-| Server 在 Docker、Sidecar 在宿主机 | `0.0.0.0:18789` | `http://宿主机LAN_IP:18789/miloco/webhook` | Docker `host` 网络或 `host.docker.internal` |
+| Server 在 Docker、Sidecar 在宿主机 | `0.0.0.0:18789` | `http://宿主机LAN_IP:18789/miloco/webhook` | Docker **`host` 网络（仅 Linux）** 或 `host.docker.internal`；**macOS 容器无有效 host** |
 | 异机 | `0.0.0.0:18789` | `http://Sidecar机器IP:18789/miloco/webhook` | 双向防火墙、路由可达 |
 
 Sidecar 监听地址由 `$MILOCO_HOME/miloco-agent.json` 的 `sidecar.host` 控制；`setup-external-miloco.sh` 默认 **`0.0.0.0`**（便于跨机）。

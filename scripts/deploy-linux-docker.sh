@@ -12,6 +12,10 @@ COMPOSE_FILE="$AGENT_ROOT/docker/docker-compose.yml"
 log() { printf '[deploy] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }
 
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  die "容器部署依赖 Linux 的 network_mode: host；macOS 容器（Docker Desktop/Podman VM）不支持有效 host 网络与摄像头 LAN 感知。请在本机执行: bash miloco-agent/scripts/miloco-stack.sh setup && start"
+fi
+
 command -v docker >/dev/null 2>&1 || die "需要 docker 或 podman（带 docker compose）"
 
 if docker compose version >/dev/null 2>&1; then

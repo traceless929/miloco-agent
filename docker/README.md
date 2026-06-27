@@ -2,9 +2,28 @@
 
 在**不修改官方 `backend/` 安装逻辑**的前提下，用 Docker/Podman 跑起 Miloco Server + `miloco-agent` Sidecar。
 
+> ## ⚠️ 重要：仅 Linux + `network_mode: host`
+>
+> 本项目的容器编排**依赖 Docker/Podman 的 host 网络模式**，以便 Miloco 与摄像头处于**同一 LAN**（UDP 发现 / P2P 拉流 / 感知）。
+>
+> | 平台 | 容器 + host 网络 | 说明 |
+> |------|------------------|------|
+> | **Linux** | ✅ 支持 | 推荐：`deploy-linux-docker.sh` 或 `docker compose` |
+> | **macOS**（Docker Desktop / Podman Machine） | ❌ **不支持有效 host 网络** | host 绑定在 Linux VM 内，**不能**替代本机 LAN；bridge 模式**无法**做摄像头感知 |
+>
+> **macOS 用户请用本机直跑，不要用容器部署 Miloco Server：**
+>
+> ```bash
+> bash miloco-agent/scripts/miloco-stack.sh setup
+> bash miloco-agent/scripts/miloco-stack.sh start
+> ```
+>
+> 详见下文「macOS 请勿使用容器部署」。
+
 ## 前置
 
-- Docker 或 Podman（本机 `docker` 若为 Podman 别名亦可）
+- **Linux** 主机（与摄像头同网段）
+- Docker 或 Podman（`docker compose` / `podman compose`）
 - 首次构建约 15～30 分钟（编译 web + Python wheels）
 
 ## 镜像与 apt 源
@@ -40,59 +59,68 @@ podman compose -f docker/docker-compose.yml build
 podman compose -f docker/docker-compose.yml up -d
 ```
 
-## 网络（host 模式）
+## 网络（host 模式 — Linux 专有）
 
-默认 **`network_mode: host`**：容器与宿主机共用网络栈，便于摄像头 **LAN 直连 / UDP 发现 / P2P 拉流**。
+默认 **`network_mode: host`**（见 `docker-compose.yml`）：容器与宿主机共用网络栈，摄像头才能 **LAN 直连**。
 
 | 项 | 说明 |
 |----|------|
 | 访问地址 | `http://127.0.0.1:1810`（面板）、`:18789`（agent） |
-| `ports:` | host 模式下**无效**，已移除 |
-| Server → Agent | `config.json` 内 `agent.webhook_url` 为 `http://127.0.0.1:18789/miloco/webhook`（entrypoint 每次启动同步） |
-| 平台 | **Linux** 上效果最好；**macOS Podman** 的 host 在虚拟机内，`127.0.0.1:1810` 可能打不开面板，见下节 |
+| `ports:` 映射 | host 模式下**无效**，已移除 |
+| Server → Agent | `agent.webhook_url` 为 `http://127.0.0.1:18789/miloco/webhook` |
+| **适用平台** | **仅 Linux**（实体机 / NAS / 云主机与摄像头同网） |
 
-端口可在 `docker/.env` 修改 `MILOCO_SERVER_PORT` / `MILOCO_AGENT_PORT`（勿与宿主机其他服务冲突）。
+端口可在 `docker/.env` 修改 `MILOCO_SERVER_PORT` / `MILOCO_AGENT_PORT`。
 
-### macOS Podman 说明
+### macOS 请勿使用容器部署
+
+Docker Desktop、Podman Desktop / Podman Machine 在 macOS 上运行 Linux 虚拟机：
+
+- **`network_mode: host` 不作用于 macOS 本机**，只作用于 VM 内部 loopback，浏览器访问 `127.0.0.1:1810` 往往失败，且 VM 通常**进不了**家庭摄像头网段 → **感知不可用**。
+- 改用 **bridge + 端口映射** 只能打开 Web 面板，**仍无法**替代 host 模式做 LAN 感知。
+
+**结论：macOS 上请本机直跑（推荐一键脚本），容器方案仅用于 Linux。**
+
+```bash
+# macOS 推荐
+bash miloco-agent/scripts/miloco-stack.sh setup
+bash miloco-agent/scripts/miloco-stack.sh start
+# 或前台：miloco-local-run.sh + miloco-agent-run.sh
+```
+
+以下内容中「bridge / 端口转发」等仅为历史说明，**不视为 macOS 上的推荐部署路径**。
+
+<details>
+<summary>（参考）macOS Podman bridge / 端口转发 — 非推荐</summary>
 
 `network_mode: host` 绑定的是 **Podman 虚拟机**的网络，不是 macOS 本机 loopback：
 
-- 容器内 / VM 内：`curl http://127.0.0.1:1810/health` 正常
-- Mac 浏览器访问 `127.0.0.1:1810` 可能失败
-
-**不等于只能本机直跑**。容器完全可行，按目标选方案：
+- 容器内 / VM 内：`curl http://127.0.0.1:1810/health` 可能正常
+- Mac 浏览器访问 `127.0.0.1:1810` 可能失败；摄像头感知通常不可用
 
 | 目标 | 方案 | 面板 | 摄像头感知 |
 |------|------|------|------------|
-| 家里 Linux（NAS / 小主机） | 默认 `docker-compose.yml`（host） | ✅ | ✅ |
-| Mac 调面板 + Agent | bridge 叠加 或 端口转发脚本 | ✅ | ❌ |
-| Mac 容器 + 尽量碰 LAN | host + `mac-port-forward.sh` | ✅（需转发） | ⚠️ 视 VM 能否进家庭网段 |
-| Mac 要完整感知 | 本机 `miloco-backend` 或 Linux 容器 | ✅ | ✅ |
+| 家里 **Linux** | `docker-compose.yml`（host） | ✅ | ✅ |
+| Mac 调面板（无感知） | bridge 叠加 | ⚠️ | ❌ |
+| Mac 完整感知 | **本机 `miloco-stack.sh`** | ✅ | ✅ |
 
-#### 方案 A：Linux 上跑容器（推荐，仍是 Docker）
+#### 方案 A：Linux 上跑容器（推荐）
 
-与摄像头同网的 **Linux 实体机 / NAS / 树莓派** 上 `docker compose up`，`network_mode: host` 在 Linux 上是真 host，**不必本机直跑 Python**。
+与摄像头同网的 **Linux 实体机 / NAS** 上 `docker compose up`，`network_mode: host` 在 Linux 上是真 host。
 
-#### 方案 B：Mac 只要面板 / 规则 / Agent
+#### 方案 B：Mac bridge（仅面板，无感知）
 
 ```bash
 docker compose -f docker/docker-compose.yml -f docker/docker-compose.bridge.yml up -d
-open http://127.0.0.1:1810/
 ```
 
-#### 方案 C：Mac 保持 host + 本机浏览器（端口转发）
-
-另开终端，保持运行：
+#### 方案 C：Mac host + 端口转发（仍难做感知）
 
 ```bash
 bash docker/mac-port-forward.sh
 ```
 
-然后在 Mac 打开 `http://127.0.0.1:1810/`。摄像头能否感知取决于 Podman VM 是否路由到你家局域网（多数家庭网下仍困难）。
-
-#### 方案 D：Mac 本机直跑
-
-仅当必须在 Mac 上完成**摄像头感知**且容器网络不满足时使用 `scripts/miloco-agent-install.sh` + 官方安装方式。
+</details>
 
 ## 验证
 
