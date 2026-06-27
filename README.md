@@ -2,6 +2,8 @@
 
 Fork 专属 Sidecar：兼容 Miloco `agent.webhook_url` 契约，用于替换 OpenClaw Gateway + Plugin。
 
+> 本目录为独立仓库 [traceless929/miloco-agent](https://github.com/traceless929/miloco-agent)，在 [xiaomi-miloco](https://github.com/traceless929/xiaomi-miloco) fork 中以 **Git Submodule** 引用。部署脚本、`docs/agent/`、`docker/` 仍在主仓。
+
 ## 要求
 
 - Python **≥ 3.11**（独立 venv，不并入 `backend/` workspace）
