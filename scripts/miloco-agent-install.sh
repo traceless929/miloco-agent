@@ -43,7 +43,11 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 uv pip install -e "$AGENT_DIR[dev]"
-uv pip install -e "$MILOCO_REPO/cli"
+if [[ "${MILOCO_SKIP_CLI:-0}" != "1" && -f "$MILOCO_REPO/cli/pyproject.toml" ]]; then
+  uv pip install -e "$MILOCO_REPO/cli"
+elif [[ "${MILOCO_SKIP_CLI:-0}" != "1" ]]; then
+  echo "[miloco-agent-install] 未找到 $MILOCO_REPO/cli，跳过 miloco-cli（可设 MILOCO_SKIP_CLI=1 抑制此提示）" >&2
+fi
 
 MILOCO_HOME="${MILOCO_HOME:-$HOME/.openclaw/miloco}"
 CONFIG="$MILOCO_HOME/config.json"

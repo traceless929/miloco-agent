@@ -32,6 +32,7 @@ class ServerSettings:
     host: str = "127.0.0.1"
     port: int = 1810
     token: str = ""
+    url: str = ""
 
 
 @dataclass
@@ -113,6 +114,8 @@ class MilocoAgentSettings:
 
     @property
     def miloco_api_base(self) -> str:
+        if self.server.url:
+            return self.server.url.rstrip("/")
         host = self.server.host
         if host in ("0.0.0.0", "::", ""):
             host = "127.0.0.1"
@@ -175,6 +178,7 @@ def load_settings(
             host=str(_nested_get(server_raw, "host", "127.0.0.1")),
             port=int(_nested_get(server_raw, "port", 1810)),
             token=str(_nested_get(server_raw, "token", "")),
+            url=str(_nested_get(server_raw, "url", "")).rstrip("/"),
         ),
         llm=LlmSettings(
             base_url=str(_nested_get(llm_src, "base_url", LlmSettings.base_url)).rstrip("/"),

@@ -72,7 +72,7 @@
 ## 3. 启动与验证
 
 ```bash
-MILOCO_HOME=./docker/data bash scripts/miloco-agent-run.sh
+MILOCO_HOME=./docker/data bash miloco-agent/scripts/miloco-agent-run.sh
 ```
 
 启动后日志应出现 `feishu long-connection thread started`。

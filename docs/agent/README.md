@@ -4,9 +4,13 @@
 
 ## 文档
 
+完整 **部署 / 配置 / 一键启动** 手册见子仓根目录 **[../README.md](../README.md)**（推荐从此读起）。
+
 | 文档 | 说明 |
 |------|------|
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | 架构设计：边界、Webhook 契约、Session、AgentScope、飞书、Cron |
+| [../README.md](../README.md) | 母仓/子仓结构、全栈部署、`miloco-stack.sh` |
+| [../docs/EXTERNAL_MILOCO.md](../docs/EXTERNAL_MILOCO.md) | **仅 Sidecar 对接外部 Miloco** |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | 架构设计：边界、Webhook 契约、Session、AgentScope |
 | [DEVELOPMENT_PLAN.md](./DEVELOPMENT_PLAN.md) | 分期开发计划 P0～P5、验收标准、合并策略 |
 | [FEISHU_SETUP.md](./FEISHU_SETUP.md) | 飞书机器人接入与排错 |
 | [ADMIN_PLATFORM.md](./ADMIN_PLATFORM.md) | Agent 管理配置台（:18789/admin） |
@@ -30,7 +34,8 @@ git clone --recurse-submodules https://github.com/traceless929/xiaomi-miloco.git
 
 git submodule update --init --recursive
 
-bash miloco-agent/scripts/miloco-agent-install.sh
+bash miloco-agent/scripts/miloco-stack.sh setup
+bash miloco-agent/scripts/miloco-stack.sh start
 ```
 
 Sidecar 日常开发可在 `miloco-agent/` 内独立 commit/push，再回到主仓 bump submodule 指针。
