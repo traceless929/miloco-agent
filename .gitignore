@@ -3,3 +3,7 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
+docker/.env
+docker/data/*
+!docker/data/.gitignore
+!docker/data/README.md

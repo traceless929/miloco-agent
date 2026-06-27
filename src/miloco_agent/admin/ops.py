@@ -7,7 +7,7 @@ import shutil
 import subprocess
 from typing import Any
 
-from miloco_agent.bridge.skills import repo_root
+from miloco_agent.bridge.skills import agent_root
 from miloco_agent.config import miloco_home
 
 
@@ -32,7 +32,7 @@ def schedule_sidecar_restart() -> dict[str, Any]:
                 "message": f"已通过 supervisorctl 重启 {supervisor}",
             }
 
-    script = repo_root() / "scripts" / "miloco-agent-restart.sh"
+    script = agent_root() / "scripts" / "miloco-agent-restart.sh"
     if not script.is_file():
         return {"ok": False, "error": f"未找到重启脚本: {script}"}
     env = os.environ.copy()

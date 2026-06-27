@@ -1,0 +1,93 @@
+# Miloco Server — 多阶段构建（fork 专属，不修改官方 backend 源码）
+# apt: 阿里云 ubuntu / ubuntu-ports
+# uv: pip + 阿里云 PyPI（见 docker/install-uv.sh）
+
+ARG UBUNTU_IMAGE=m.daocloud.io/docker.io/library/ubuntu:24.04
+FROM ${UBUNTU_IMAGE} AS builder
+
+COPY miloco-agent/docker/apt-aliyun.sh /tmp/apt-aliyun.sh
+RUN chmod +x /tmp/apt-aliyun.sh && /tmp/apt-aliyun.sh
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl git build-essential rsync \
+    python3 python3-pip python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY miloco-agent/docker/uv.toml /tmp/uv.toml
+COPY miloco-agent/docker/install-uv.sh /tmp/install-uv.sh
+RUN chmod +x /tmp/install-uv.sh && /tmp/install-uv.sh
+ENV PATH="/root/.local/bin:${PATH}"
+ENV UV_DEFAULT_INDEX=https://mirrors.aliyun.com/pypi/simple/
+ENV UV_PYTHON_INSTALL_MIRROR=https://mirror.nju.edu.cn/github-release/indygreg/python-build-standalone
+
+# Node + pnpm（web 构建）
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get update && apt-get install -y nodejs \
+    && npm install -g pnpm@9 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+COPY . /src
+
+COPY miloco-agent/docker/prepare-build.sh /tmp/prepare-build.sh
+RUN chmod +x /tmp/prepare-build.sh && /tmp/prepare-build.sh
+
+COPY miloco-agent/docker/build-docker.sh /tmp/build-docker.sh
+RUN chmod +x /tmp/build-docker.sh && /tmp/build-docker.sh
+
+ENV UV_TOOL_DIR=/opt/miloco/tools
+ENV UV_TOOL_BIN_DIR=/opt/miloco/bin
+RUN mkdir -p /opt/miloco/bin /opt/miloco/tools \
+    && ARCH="$(uname -m)" \
+    && case "$ARCH" in \
+         aarch64|arm64) MIOT_TAG=manylinux_2_28_aarch64 ;; \
+         x86_64|amd64) MIOT_TAG=manylinux_2_28_x86_64 ;; \
+         *) echo "unsupported arch: $ARCH" >&2; exit 1 ;; \
+       esac \
+    && MILOCO_WHEEL=$(ls dist/miloco-*.whl | grep -v miloco_miot | grep -v miloco_cli | head -1) \
+    && MIOT_WHEEL=$(ls dist/miloco_miot-*-"${MIOT_TAG}".whl | head -1) \
+    && CLI_WHEEL=$(ls dist/miloco_cli-*.whl | head -1) \
+    && uv tool install "$MILOCO_WHEEL" --with "$MIOT_WHEEL" --force \
+    && uv tool install "$CLI_WHEEL" --force
+
+# cryptography>=43 的 Rust wheel 在部分 Podman/QEMU aarch64 环境会 SIGILL，固定到 42.x
+RUN uv pip install --python /opt/miloco/tools/miloco/bin/python3 \
+    "cryptography==42.0.8" --force-reinstall \
+    -i https://mirrors.aliyun.com/pypi/simple/
+
+# ── Runtime ─────────────────────────────────────────────────────────────
+FROM ${UBUNTU_IMAGE} AS runtime
+
+COPY miloco-agent/docker/apt-aliyun.sh /tmp/apt-aliyun.sh
+RUN chmod +x /tmp/apt-aliyun.sh && /tmp/apt-aliyun.sh
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    python3 \
+    libgl1 \
+    libglib2.0-0 \
+    libgomp1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/miloco /opt/miloco
+# 感知 ONNX 默认模型（启动时同步到 $MILOCO_HOME/models/）
+COPY backend/miloco/src/miloco/perception/models/ /opt/miloco/default-models/
+COPY miloco-agent/docker/entrypoint-miloco.sh /usr/local/bin/entrypoint-miloco.sh
+RUN chmod +x /usr/local/bin/entrypoint-miloco.sh
+
+ENV PATH="/opt/miloco/bin:${PATH}"
+ENV MILOCO_HOME=/data/miloco
+ENV MILOCO_SERVER_HOST=0.0.0.0
+ENV MILOCO_SERVER_PORT=1810
+
+VOLUME ["/data/miloco"]
+EXPOSE 1810
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -fsS "http://127.0.0.1:${MILOCO_SERVER_PORT}/health" || exit 1
+
+ENTRYPOINT ["/usr/local/bin/entrypoint-miloco.sh"]
+CMD ["miloco-backend"]

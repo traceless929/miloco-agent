@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Fork 专属：supervisor 示例（7×24 运行 miloco-agent Sidecar）
+
+[program:miloco-agent]
+command=bash %(ENV_MILOCO_AGENT_ROOT)s/scripts/miloco-agent-run.sh
+directory=%(ENV_MILOCO_AGENT_ROOT)s
+user=%(ENV_USER)s
+autostart=true
+autorestart=true
+startsecs=5
+stopwaitsecs=20
+stdout_logfile=%(ENV_MILOCO_HOME)s/logs/miloco-agent.log
+stderr_logfile=%(ENV_MILOCO_HOME)s/logs/miloco-agent.err.log
+environment=MILOCO_HOME="%(ENV_MILOCO_HOME)s",MILOCO_REPO="%(ENV_MILOCO_REPO)s",MILOCO_AGENT_VENV="%(ENV_MILOCO_AGENT_ROOT)s/.venv",MILOCO_AGENT_ROOT="%(ENV_MILOCO_AGENT_ROOT)s"

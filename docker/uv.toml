@@ -1,0 +1,10 @@
+# uv 全局配置（容器 / 国内构建）
+# 参考: https://developer.aliyun.com/mirror/pypi
+#       https://developer.aliyun.com/mirror/ubuntu-ports
+
+[[index]]
+url = "https://mirrors.aliyun.com/pypi/simple/"
+default = true
+
+# python-build-standalone 下载加速（uv python install / uv sync 拉解释器时）
+python-install-mirror = "https://mirror.nju.edu.cn/github-release/indygreg/python-build-standalone"

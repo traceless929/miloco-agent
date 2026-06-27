@@ -1,0 +1,53 @@
+# Miloco 容器编排（fork 专属，位于 miloco-agent 子仓）
+# MILOCO_REPO 必须指向 xiaomi-miloco 根目录（含 backend/ cli/ web/）
+# 用法见 miloco-agent/docker/README.md
+
+services:
+  miloco:
+    build:
+      context: ${MILOCO_REPO:?set MILOCO_REPO to xiaomi-miloco root}
+      dockerfile: miloco-agent/docker/Dockerfile.miloco
+    image: miloco-local:latest
+    container_name: miloco-server
+    network_mode: host
+    environment:
+      MILOCO_HOME: /data/miloco
+      MILOCO_SERVER_HOST: "0.0.0.0"
+      MILOCO_SERVER_PORT: "${MILOCO_SERVER_PORT:-1810}"
+      MILOCO_AGENT_WEBHOOK_URL: "${MILOCO_AGENT_WEBHOOK_URL:-http://127.0.0.1:18789/miloco/webhook}"
+      MILOCO_OMNI_API_KEY: "${MILOCO_OMNI_API_KEY:-}"
+      MILOCO_OMNI_BASE_URL: "${MILOCO_OMNI_BASE_URL:-https://api.xiaomimimo.com/v1}"
+      MILOCO_OMNI_MODEL: "${MILOCO_OMNI_MODEL:-xiaomi/mimo-v2.5}"
+    volumes:
+      - ${MILOCO_DATA_DIR:-./data}:/data/miloco
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:${MILOCO_SERVER_PORT:-1810}/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+
+  miloco-agent:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.agent
+    image: miloco-agent-local:latest
+    container_name: miloco-agent
+    network_mode: host
+    depends_on:
+      miloco:
+        condition: service_healthy
+    environment:
+      MILOCO_HOME: /data/miloco
+      MILOCO_AGENT_HOST: "0.0.0.0"
+      MILOCO_AGENT_PORT: "${MILOCO_AGENT_PORT:-18789}"
+    volumes:
+      - ${MILOCO_DATA_DIR:-./data}:/data/miloco
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:${MILOCO_AGENT_PORT:-18789}/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

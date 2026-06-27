@@ -7,9 +7,18 @@ from functools import lru_cache
 from pathlib import Path
 
 
+def agent_root() -> Path:
+    """miloco-agent submodule / package repo root."""
+    if env := os.environ.get("MILOCO_AGENT_ROOT"):
+        return Path(env).expanduser().resolve()
+    return Path(__file__).resolve().parents[3]
+
+
 def repo_root() -> Path:
-    """miloco-agent package → repo root (xiaomi-miloco)."""
-    return Path(__file__).resolve().parents[4]
+    """xiaomi-miloco fork root (plugins/skills, cli, backend)."""
+    if env := os.environ.get("MILOCO_REPO"):
+        return Path(env).expanduser().resolve()
+    return agent_root().parent
 
 
 @lru_cache(maxsize=1)

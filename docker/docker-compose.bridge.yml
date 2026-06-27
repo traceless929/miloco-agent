@@ -1,0 +1,16 @@
+# Bridge 网络（可选）— macOS Podman 下浏览器可访问 127.0.0.1
+# 用法: docker compose -f docker/docker-compose.yml -f docker/docker-compose.bridge.yml up -d
+# 注意: 摄像头 LAN 感知在 bridge 下通常不可用，仅适合面板/API 调试
+
+services:
+  miloco:
+    network_mode: bridge
+    ports:
+      - "${MILOCO_SERVER_PORT:-1810}:1810"
+    environment:
+      MILOCO_AGENT_WEBHOOK_URL: "http://miloco-agent:18789/miloco/webhook"
+
+  miloco-agent:
+    network_mode: bridge
+    ports:
+      - "${MILOCO_AGENT_PORT:-18789}:18789"

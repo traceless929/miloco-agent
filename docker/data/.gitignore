@@ -1,0 +1,4 @@
+# 本地 MILOCO_HOME 数据（config、模型、SQLite、日志）— 勿提交
+*
+!.gitignore
+!README.md

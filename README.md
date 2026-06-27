@@ -2,93 +2,55 @@
 
 Fork 专属 Sidecar：兼容 Miloco `agent.webhook_url` 契约，用于替换 OpenClaw Gateway + Plugin。
 
-> 本目录为独立仓库 [traceless929/miloco-agent](https://github.com/traceless929/miloco-agent)，在 [xiaomi-miloco](https://github.com/traceless929/xiaomi-miloco) fork 中以 **Git Submodule** 引用。部署脚本、`docs/agent/`、`docker/` 仍在主仓。
+> 独立仓库 [traceless929/miloco-agent](https://github.com/traceless929/miloco-agent)，在 [xiaomi-miloco](https://github.com/traceless929/xiaomi-miloco) fork 中以 **Git Submodule** 引用。  
+> 本仓包含：Sidecar 源码、`scripts/`、`docker/`、`docs/`。
 
 ## 要求
 
 - Python **≥ 3.11**（独立 venv，不并入 `backend/` workspace）
-- 已运行的 Miloco Server（`miloco-cli service start`）
-- 可选：`miloco-cli` 在 PATH（设备 catalog 注入）
+- 已 clone 的 **xiaomi-miloco** 父仓库（`MILOCO_REPO`，含 `backend/`、`cli/`、`plugins/skills/`）
+- 已运行的 Miloco Server（`miloco-cli service start` 或 Docker）
 
 ## 快速开始
 
 ```bash
-# 安装（仓库根目录）
-bash scripts/miloco-agent-install.sh
+# 在 xiaomi-miloco 根目录
+git submodule update --init --recursive
 
-# 启动（默认 :18789）
-bash scripts/miloco-agent-run.sh
+bash miloco-agent/scripts/miloco-agent-install.sh
+bash miloco-agent/scripts/miloco-agent-run.sh
+# 兼容旧路径：bash scripts/miloco-agent-run.sh（转发到子仓脚本）
 ```
 
-确保 `$MILOCO_HOME/config.json` 中：
+默认数据目录：`miloco-agent/docker/data/`（`MILOCO_HOME` 可覆盖）。
 
-```json
-{
-  "agent": {
-    "webhook_url": "http://127.0.0.1:18789/miloco/webhook",
-    "auth_bearer": "<与安装脚本生成的一致>",
-    "llm": { "base_url": "...", "model": "...", "api_key": "..." },
-    "feishu": {
-      "enabled": true,
-      "mode": "long_connection",
-      "app_id": "...",
-      "app_secret": "...",
-      "history_turns": 10
-    },
-    "cron": { "enabled": true, "timezone": "Asia/Shanghai" }
-  }
-}
-```
+## 目录
 
-## 7×24 运行
+| 路径 | 说明 |
+|------|------|
+| `src/miloco_agent/` | Sidecar 源码 |
+| `scripts/` | 安装、启动、本机运行、Docker 部署 |
+| `docker/` | 容器编排与镜像构建 |
+| `docs/` | Fork 专属文档（架构、飞书、管理台） |
+
+## Docker
 
 ```bash
 export MILOCO_REPO=/path/to/xiaomi-miloco
-export MILOCO_HOME=$HOME/.openclaw/miloco
-# 参考 scripts/miloco-agent-supervisor.conf.example 配置 supervisor
+bash miloco-agent/scripts/deploy-linux-docker.sh
 ```
 
-## 功能概览
+详见 [docker/README.md](./docker/README.md)。
 
-| 模块 | 说明 |
+## 文档
+
+- [docs/agent/README.md](./docs/agent/README.md)
+
+## 环境变量
+
+| 变量 | 说明 |
 |------|------|
-| Webhook | `agent` / `get_trace` 兼容 Server AgentDispatcher |
-| **管理台** | `http://127.0.0.1:18789/admin` — LLM/飞书/Cron 配置 |
-| 设备 Tools | list / spec / control / TTS |
-| 通知 | notify_send + 分级策略 |
-| 飞书 | 长连接 + MD/流式 + 多轮历史（`feishu:{open_id}`） |
-| 家庭记忆 Cron | digest / patrol / dreaming / habit-suggest |
-| 用户任务 Cron | `cron_add` / `cron_remove` + task link |
-| Trace | turn meta 供 observability poller 消费 |
-
-## 开发
-
-```bash
-cd miloco-agent
-uv sync --extra dev
-uv run pytest -q
-uv run miloco-agent
-```
-
-## 排错
-
-| 现象 | 处理 |
-|------|------|
-| webhook 401 | 检查 `agent.auth_bearer` 与请求头一致 |
-| 飞书无回复 | 确认 `feishu.enabled`、应用权限、长连接进程日志 |
-| catalog 为空 | 确认 Server 已启动且 `miloco-cli device catalog` 可执行 |
-| Cron 不跑 | `agent.cron.enabled=true` 后重启 Sidecar |
-
-文档见 [docs/agent/](../docs/agent/README.md)。
-
-## OpenClaw 退役对照
-
-| OpenClaw | miloco-agent |
-|----------|--------------|
-| `/miloco/webhook` | `webhook/` |
-| Agent turn | `runtime/turn_runner.py` |
-| device catalog 注入 | `prompt/catalog.py` |
-| home-profile cron | `cron/jobs.py` + `cron/user_registry.py` |
-| miloco_habit_suggest | `tools/habit_suggest.py` |
-| trace / get_trace | `trace/store.py` |
-| 飞书 IM | `channels/feishu/` |
+| `MILOCO_REPO` | xiaomi-miloco 根目录（默认：本仓上一级） |
+| `MILOCO_AGENT_ROOT` | 本仓根目录（Python 桥接可选） |
+| `MILOCO_HOME` | 运行时数据目录 |
+| `MILOCO_SKILLS_DIR` | 覆盖 `plugins/skills` 路径 |

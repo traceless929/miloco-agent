@@ -1,0 +1,55 @@
+# miloco-agent Sidecar（fork 专属）
+# build context: miloco-agent 仓库根目录（docker-compose 中 context: ..）
+
+ARG UBUNTU_IMAGE=m.daocloud.io/docker.io/library/ubuntu:24.04
+FROM ${UBUNTU_IMAGE} AS builder
+
+COPY docker/apt-aliyun.sh /tmp/apt-aliyun.sh
+RUN chmod +x /tmp/apt-aliyun.sh && /tmp/apt-aliyun.sh
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl git python3 python3-pip python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY docker/uv.toml /tmp/uv.toml
+COPY docker/install-uv.sh /tmp/install-uv.sh
+RUN chmod +x /tmp/install-uv.sh && /tmp/install-uv.sh
+ENV PATH="/root/.local/bin:${PATH}"
+ENV UV_DEFAULT_INDEX=https://mirrors.aliyun.com/pypi/simple/
+ENV UV_PYTHON_INSTALL_MIRROR=https://mirror.nju.edu.cn/github-release/indygreg/python-build-standalone
+
+WORKDIR /build
+COPY . /build/miloco-agent
+RUN cd miloco-agent && uv sync --extra dev && uv pip install --no-editable .
+
+FROM ${UBUNTU_IMAGE} AS runtime
+
+COPY docker/apt-aliyun.sh /tmp/apt-aliyun.sh
+RUN chmod +x /tmp/apt-aliyun.sh && /tmp/apt-aliyun.sh
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates python3 curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /build/miloco-agent/.venv /opt/miloco-agent/.venv
+RUN VENV=/opt/miloco-agent/.venv \
+    && sed -i 's|/build/miloco-agent/.venv|/opt/miloco-agent/.venv|g' "$VENV/pyvenv.cfg" \
+    && find "$VENV/bin" -maxdepth 1 -type f -exec sed -i 's|/build/miloco-agent/.venv|/opt/miloco-agent/.venv|g' {} +
+COPY docker/entrypoint-agent.sh /usr/local/bin/entrypoint-agent.sh
+RUN chmod +x /usr/local/bin/entrypoint-agent.sh
+
+ENV PATH="/opt/miloco-agent/.venv/bin:${PATH}"
+ENV MILOCO_HOME=/data/miloco
+ENV MILOCO_AGENT_HOST=0.0.0.0
+ENV MILOCO_AGENT_PORT=18789
+
+VOLUME ["/data/miloco"]
+EXPOSE 18789
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD curl -fsS "http://127.0.0.1:${MILOCO_AGENT_PORT}/health" || exit 1
+
+ENTRYPOINT ["/usr/local/bin/entrypoint-agent.sh"]
+CMD ["miloco-agent"]

@@ -9,12 +9,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from miloco_agent.bridge.skills import repo_root
+from miloco_agent.bridge.skills import agent_root, repo_root
 
 
 def _sidecar_venv_bin() -> Path | None:
-    """miloco-agent/.venv/bin next to repo root."""
-    candidate = repo_root() / "miloco-agent" / ".venv" / "bin" / "miloco-cli"
+    """miloco-agent/.venv/bin"""
+    candidate = agent_root() / ".venv" / "bin" / "miloco-cli"
     return candidate if candidate.is_file() else None
 
 
@@ -153,7 +153,7 @@ def install_miloco_cli() -> dict[str, Any]:
         if installer == "pip" and "No module named pip" in err:
             return {
                 "ok": False,
-                "error": "venv 无 pip；请安装 uv 后重试，或执行: bash scripts/miloco-agent-install.sh",
+                "error": "venv 无 pip；请安装 uv 后重试，或执行: bash miloco-agent/scripts/miloco-agent-install.sh",
             }
         return {"ok": False, "error": err or f"{installer} exit {proc.returncode}"}
 
