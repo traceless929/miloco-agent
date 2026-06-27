@@ -25,6 +25,7 @@ usage() {
   MILOCO_AGENT_PORT        Sidecar 端口（默认 18789）
   AGENT_AUTH_BEARER        与外部 Server agent.auth_bearer 一致（空则自动生成）
   MILOCO_SKILLS_DIR        Skill 文档目录（无母仓时必填或从 shallow clone 指定）
+                           外部 Miloco 升级后须手动 git 同步 plugins/skills 并 restart Sidecar
   MILOCO_SKIP_CLI          1=不安装 miloco-cli（无 Bash 设备命令，Skill 仍可用）
   NONINTERACTIVE           1=不提问，缺变量则失败
 
@@ -233,6 +234,7 @@ EOF
   log "  1. 在外部 Server 写入上述 agent.webhook_url / auth_bearer 并重启 Server"
   log "  2. 编辑 $MILOCO_HOME/config.json 填入 agent.llm.api_key"
   [[ -n "${MILOCO_SKILLS_DIR:-}" ]] && log "  export MILOCO_SKILLS_DIR=$MILOCO_SKILLS_DIR"
+  log "  提示: 外部 Miloco 升级后请手动同步 MILOCO_SKILLS_DIR 下 plugins/skills（git fetch + restart Sidecar），见 docs/EXTERNAL_MILOCO.md §3.1"
   log "  3. bash miloco-agent/scripts/miloco-agent-only.sh start"
 }
 

@@ -267,6 +267,8 @@ git push origin main
 
 完整环境要求、网络拓扑、验证清单见 **[docs/EXTERNAL_MILOCO.md](./docs/EXTERNAL_MILOCO.md)**。
 
+> **Skill 文档**：无母仓时需单独配置 `MILOCO_SKILLS_DIR`。**外部 Miloco 升级后须手动从官方仓库同步 `plugins/skills`，再重启 Sidecar** — 见 [EXTERNAL_MILOCO.md §3.1](./docs/EXTERNAL_MILOCO.md#31-skill-文档须手动同步重要)。
+
 ```bash
 # 仅 clone 子仓即可（无需 xiaomi-miloco 母仓）
 git clone https://github.com/traceless929/miloco-agent.git && cd miloco-agent
@@ -333,6 +335,7 @@ docker/data/
 | 飞书无消息 | 未开长连接或未发布应用 | [FEISHU_SETUP.md](./docs/agent/FEISHU_SETUP.md) |
 | 合盖后停服 | Mac 睡眠 | 插电 + `caffeinate start` |
 | Mac 容器无法感知 | macOS 无有效 host 网络 | **勿用 Docker**；改用 `miloco-stack.sh` 本机直跑 |
+| 外部 Miloco 升级后 Agent 行为异常 | Skill 未与官方同步 | 更新 `MILOCO_SKILLS_DIR` 下 `plugins/skills` 后 restart Sidecar；见 [EXTERNAL_MILOCO.md §3.1](./docs/EXTERNAL_MILOCO.md#31-skill-文档须手动同步重要) |
 | Linux 容器失败 | 未用 host 或不在摄像头网段 | 确认 `network_mode: host` 且与摄像头同 LAN |
 
 ---

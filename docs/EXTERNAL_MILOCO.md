@@ -56,7 +56,7 @@ Omni 摄像头感知在外部 Server 执行，Sidecar **不需要**配置 `model
 | 组件 | 是否必须 | 说明 |
 |------|----------|------|
 | 母仓 `xiaomi-miloco` | **否** | 仅 Sidecar 时可只 clone `miloco-agent` 仓库 |
-| `plugins/skills` | **推荐** | 设 `MILOCO_SKILLS_DIR` 指向 Skill 目录；可从官方仓库 shallow clone |
+| `plugins/skills` | **推荐** | 设 `MILOCO_SKILLS_DIR` 指向 Skill 目录；可从官方仓库 shallow clone。**外部 Miloco 升级后须手动同步 Skill 文件**（见 §3.1） |
 | `miloco-cli` | **否** | 无 CLI 时 Bash 设备命令不可用；`MILOCO_SKIP_CLI=1` 跳过安装 |
 | `agent.llm.api_key` | **是**（对话/Cron） | 飞书、Agent 指令、Cron 需要 LLM |
 | 飞书应用 | **否** | 按 [FEISHU_SETUP.md](./agent/FEISHU_SETUP.md) 配置 |
@@ -84,6 +84,35 @@ git clone --depth 1 --filter=blob:none --sparse https://github.com/XiaoMi/xiaomi
 cd /tmp/xiaomi-miloco && git sparse-checkout set plugins/skills
 export MILOCO_SKILLS_DIR=/tmp/xiaomi-miloco/plugins/skills
 ```
+
+### 3.1 Skill 文档须手动同步（重要）
+
+对接**外部 Miloco** 时，Sidecar 通过 `MILOCO_SKILLS_DIR` **只读加载**本地 `plugins/skills/*/SKILL.md`，**不会**随外部 Server 升级自动更新。
+
+| 场景 | Skill 来源 | 是否自动同步 |
+|------|------------|--------------|
+| 全栈（母仓 `miloco-stack.sh`） | 母仓 `plugins/skills/` | `git merge upstream/main` 后随仓库更新 |
+| **仅 Sidecar + 外部 Miloco** | 独立 clone 的 `MILOCO_SKILLS_DIR` | ❌ **须手动拉取**官方仓库 Skill |
+
+**何时需要同步**：外部 Miloco Server 版本升级、官方新增/修改 Skill、Agent 工具行为与文档不一致时。
+
+**推荐做法**（在存放 Skill 的 clone 目录执行，路径按你的 `MILOCO_SKILLS_DIR` 调整）：
+
+```bash
+# 例：MILOCO_SKILLS_DIR=/tmp/xiaomi-miloco/plugins/skills
+cd /tmp/xiaomi-miloco
+git fetch origin main
+git checkout origin/main -- plugins/skills
+
+# 同步后重启 Sidecar，LocalSkillLoader 会按文件 mtime 重载
+bash /path/to/miloco-agent/scripts/miloco-agent-only.sh restart
+```
+
+若使用 **sparse clone**，也可在 clone 根目录 `git pull origin main`（需已 `sparse-checkout set plugins/skills`）。
+
+**持久化建议**：将 Skill 目录放在固定路径（如 `~/miloco-skills-cache/xiaomi-miloco/plugins/skills`），写入 shell 配置或 systemd 环境的 `MILOCO_SKILLS_DIR`，升级 Miloco 后按上表执行一次 `git fetch` + 重启 Sidecar。
+
+详见 [agent/BRIDGE.md](./agent/BRIDGE.md)「上游合并工作流」；全栈部署见 [README.md](./README.md) 第六节。
 
 ---
 
@@ -209,6 +238,7 @@ bash scripts/miloco-agent-only.sh start
 | 外部 Server OK，Agent 无 webhook | Server 未配 webhook 或未重启；URL 从 Server 侧不可达 |
 | 401 on webhook | `auth_bearer` 不一致 |
 | Skill 不可用 | 设置 `MILOCO_SKILLS_DIR` 或 clone 母仓 |
+| Skill 与新版 Miloco 不一致 | **外部对接不会自动同步**；在 Skill clone 目录 `git fetch` + 更新 `plugins/skills` 后 **restart Sidecar**（见 §3.1） |
 | 设备 Bash 失败 | 安装 miloco-cli：在有母仓时 `MILOCO_SKIP_CLI=0` 重装 install |
 | HTTPS 外部 Server | `server.url` 写 `https://...`，Sidecar 已支持 |
 
@@ -221,6 +251,7 @@ bash scripts/miloco-agent-only.sh start
 | Miloco Server | 本机母仓 backend 启动 | **外部**已有实例 |
 | MILOCO_HOME | 通常 `docker/data` | 独立，如 `~/.miloco-agent-sidecar` |
 | 母仓 clone | 需要 | **不需要** |
+| `plugins/skills` | 随母仓 `git merge upstream` | **须手动同步**官方 Skill（§3.1） |
 | model.omni | 与 Server 共用 config | 在外部 Server 配置 |
 
 更多全栈说明见 [README.md](./README.md)。

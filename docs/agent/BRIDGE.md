@@ -43,9 +43,24 @@ OpenClaw 专有工具（桥接）     ← 名称与语义与插件一致
 
 ## 上游合并工作流
 
+### 全栈（有母仓 `plugins/skills`）
+
 1. `git merge upstream/main` — `plugins/skills` 随官方更新
 2. 重启 Sidecar — `LocalSkillLoader` 按文件 mtime 重载
 3. 仅当 OpenClaw **新增插件工具名**时，才需在 `bridge/tools.py` 加桥接
+
+### 仅 Sidecar + 外部 Miloco（无母仓）
+
+Sidecar **不会**随外部 Server 升级自动拉取 Skill。须在 **`MILOCO_SKILLS_DIR` 对应的官方仓库 clone** 中手动更新 `plugins/skills`，再重启 Sidecar：
+
+```bash
+cd /path/to/xiaomi-miloco-skills-clone   # 含 plugins/skills 的 sparse/full clone
+git fetch origin main
+git checkout origin/main -- plugins/skills
+bash miloco-agent/scripts/miloco-agent-only.sh restart
+```
+
+详见 [EXTERNAL_MILOCO.md §3.1](../EXTERNAL_MILOCO.md#31-skill-文档须手动同步重要)。
 
 ## miloco-cli 自动适配与一键安装
 
